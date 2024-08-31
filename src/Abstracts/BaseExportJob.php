@@ -5,7 +5,6 @@ namespace Iqbalatma\LaravelExportImport\Abstracts;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
-use Iqbalatma\LaravelExportImport\Models\Export;
 
 abstract class BaseExportJob
 {
@@ -18,7 +17,7 @@ abstract class BaseExportJob
     /**
      * Create a new job instance.
      */
-    public function __construct(protected Export $export)
+    public function __construct(protected $export)
     {
     }
 
