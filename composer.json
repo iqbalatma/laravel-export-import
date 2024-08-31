@@ -12,5 +12,12 @@
             "email": "iqbalatma@gmail.com"
         }
     ],
-    "require": {}
+    "require": {},
+     "extra": {
+        "laravel": {
+            "providers": [
+                "Iqbalatma\\LaravelExportImport\\LaravelExportImportServiceProvider"
+            ]
+        }
+    }
 }
