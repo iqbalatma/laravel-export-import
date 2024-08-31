@@ -1,0 +1,16 @@
+{
+    "name": "iqbalatma/laravel-export-import",
+    "type": "library",
+    "autoload": {
+        "psr-4": {
+            "Iqbalatma\\LaravelExportImport\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "iqbalatma",
+            "email": "iqbalatma@gmail.com"
+        }
+    ],
+    "require": {}
+}
