@@ -44,12 +44,12 @@ trait InteractWithExport
     protected function createExportEntity(string $exportType, string $exportName = null, string $permissionName = null, Closure $callback = null): self
     {
         DB::transaction(function () use ($exportType, $exportName, $permissionName, $callback) {
-            if (is_null($exportName)){
+            if (is_null($exportName)) {
                 $exportName = $exportType;
             }
 
-            $path = rtrim(implode(DIRECTORY_SEPARATOR, [config("app.export_path"), Str::slug($exportType)]), "/");
-            $this->export = \Iqbalatma\LaravelExportImport\Models\Export::query()->create([
+            $path = rtrim(implode(DIRECTORY_SEPARATOR, [config("export_import.path.export_path"), Str::slug($exportType)]), "/");
+            $this->export = config("export_import.models.export")::query()->create([
                 "name" => $exportName,
                 "type" => $exportType,
                 "path" => $path,

@@ -11,4 +11,10 @@ return [
         "import" => Import::class,
         "export" => Export::class
     ],
+    "path" => [
+        "export_path" => "exports",
+        "import_path" => "imports",
+        "temporary" => "tmp"
+    ],
+    'export_available_until' => 72,
 ];

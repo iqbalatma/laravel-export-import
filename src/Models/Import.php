@@ -29,8 +29,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property Carbon imported_at
  * @property Carbon created_at
  * @property Carbon updated_at
- * @property Collection<SupplierAccountNumber> supplier_account_numbers
- * @property Collection<TransactionMapReference> transaction_map_references
  */
 class Import extends Model
 {

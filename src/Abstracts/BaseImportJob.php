@@ -32,12 +32,12 @@ abstract class BaseImportJob
     /**
      * @return void
      */
-    private function uploadFileErrorToS3():void
+    private function uploadFileErrorToS3(): void
     {
         if ($this->isFileErrorExists) {
             Storage::disk("s3")->putFileAs(
                 $this->import->failed_path,
-                storage_path("app/tmp/errors/{$this->import->failed_filename}"),
+                storage_path("app/" . config("export_import.path.temporary") . "/errors/{$this->import->failed_filename}"),
                 $this->import->failed_filename
             );
         }
@@ -48,10 +48,10 @@ abstract class BaseImportJob
      */
     private function deleteTmpFile(): void
     {
-        Storage::delete("tmp/{$this->import->filename}");
+        Storage::delete(config("export_import.path.temporary") . "/{$this->import->filename}");
 
         if ($this->isFileErrorExists) {
-            Storage::delete("/tmp/errors/{$this->import->failed_filename}");
+            Storage::delete("/" . config("export_import.path.temporary") . "/errors/{$this->import->failed_filename}");
         }
     }
 
@@ -65,8 +65,8 @@ abstract class BaseImportJob
         if (Storage::disk("s3")->exists($this->import->full_path)) {
             $file = Storage::disk("s3")->get($this->import->full_path);
 
-            Storage::put("tmp/{$this->import->filename}", $file);
-            $this->file = fopen(storage_path("app/tmp/{$this->import->filename}"), mode: "r");
+            Storage::put(config("export_import.path.temporary") . "/{$this->import->filename}", $file);
+            $this->file = fopen(storage_path("app/" . config("export_import.path.temporary") . "/{$this->import->filename}"), mode: "r");
         } else {
             throw new RuntimeException("File not found");
         }
@@ -80,8 +80,8 @@ abstract class BaseImportJob
     protected function generateFileError(): self
     {
         if (!$this->isFileErrorExists) {
-            File::ensureDirectoryExists(storage_path("app/tmp/errors"));
-            $this->errorFile = fopen(storage_path("app/tmp/errors/error-{$this->import->filename}"), mode: "w");
+            File::ensureDirectoryExists(storage_path("app/" . config("export_import.path.temporary") . "/errors"));
+            $this->errorFile = fopen(storage_path("app/" . config("export_import.path.temporary") . "/errors/error-{$this->import->filename}"), mode: "w");
             $this->isFileErrorExists = true;
         }
         return $this;
@@ -93,7 +93,7 @@ abstract class BaseImportJob
      * @param string $errorMessage
      * @return $this
      */
-    protected function writeErrorRow(array $errorRow, string $errorMessage):self
+    protected function writeErrorRow(array $errorRow, string $errorMessage): self
     {
         fputcsv($this->errorFile, array_merge($errorRow, [$errorMessage]));
         return $this;
@@ -111,11 +111,11 @@ abstract class BaseImportJob
         $this->import->failed_row = $this->failedRow;
         $this->import->imported_at = Carbon::now();
         fclose($this->file);
-        if ($this->isFileErrorExists){
+        if ($this->isFileErrorExists) {
             fclose($this->errorFile);
-            $this->import->failed_path = $this->import->path."/errors";
-            $this->import->failed_filename = "error-".$this->import->filename;
-            $this->import->failed_full_path = $this->import->failed_path."/".$this->import->failed_filename;
+            $this->import->failed_path = $this->import->path . "/errors";
+            $this->import->failed_filename = "error-" . $this->import->filename;
+            $this->import->failed_full_path = $this->import->failed_path . "/" . $this->import->failed_filename;
         }
         $this->import->save();
 
