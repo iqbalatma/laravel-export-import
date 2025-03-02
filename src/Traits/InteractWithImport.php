@@ -8,6 +8,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Iqbalatma\LaravelExportImport\Exceptions\PathGeneratorException;
+use Iqbalatma\LaravelExportImport\Interfaces\PathGenerator;
+use Iqbalatma\LaravelExportImport\Models\Export;
 use Iqbalatma\LaravelExportImport\Models\Import;
 
 trait InteractWithImport
@@ -35,7 +38,7 @@ trait InteractWithImport
             $fullPath = "$path/$filename";
             Storage::disk("s3")->putFileAs($path, $file, $filename);
 
-            $this->import = config("export_import.models.import")::query()->create([
+            $this->import = self::getImportModel()::query()->create([
                 "type" => $importType,
                 "name" => $importName,
                 "success_row" => null,
@@ -61,4 +64,13 @@ trait InteractWithImport
 
         return $this;
     }
+
+    /**
+     * @return Export|string
+     */
+    public static function getImportModel(): Export|string
+    {
+        return config("export_import.models.import");
+    }
+
 }

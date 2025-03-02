@@ -2,12 +2,14 @@
 
 namespace Iqbalatma\LaravelExportImport\Traits;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Iqbalatma\LaravelExportImport\Models\Import;
 
 /**
  * @property string import_id
  * @property Import import
+ * @mixin Model
  */
 trait HasImport
 {

@@ -2,6 +2,7 @@
 
 namespace Iqbalatma\LaravelExportImport\Traits;
 
+use App\Services\Management\UserService;
 use Carbon\Carbon;
 use Closure;
 use Exception;
@@ -9,6 +10,10 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Iqbalatma\LaravelExportImport\Exceptions\PathGeneratorException;
+use Iqbalatma\LaravelExportImport\Interfaces\PathGenerator;
+use Iqbalatma\LaravelExportImport\Models\Export;
+use Throwable;
 
 trait InteractWithExport
 {
@@ -39,7 +44,8 @@ trait InteractWithExport
      * @param string|null $exportName
      * @param string|null $permissionName
      * @param Closure|null $callback
-     * @return InteractWithExport
+     * @return UserService|InteractWithExport
+     * @throws Throwable
      */
     protected function createExportEntity(string $exportType, string $exportName = null, string $permissionName = null, Closure $callback = null): self
     {
@@ -48,8 +54,9 @@ trait InteractWithExport
                 $exportName = $exportType;
             }
 
-            $path = rtrim(implode(DIRECTORY_SEPARATOR, [config("export_import.path.export_path"), Str::slug($exportType)]), "/");
-            $this->export = config("export_import.models.export")::query()->create([
+            $pathGenerator = app(PathGenerator::class);
+            $path = rtrim(implode(DIRECTORY_SEPARATOR, [$pathGenerator::getExportPath(), Str::slug($exportType)]), "/");
+            $this->export = self::getExportModel()::query()->create([
                 "name" => $exportName,
                 "type" => $exportType,
                 "path" => $path,
@@ -66,5 +73,14 @@ trait InteractWithExport
         });
 
         return $this;
+    }
+
+
+    /**
+     * @return Export|string
+     */
+    public static function getExportModel(): Export|string
+    {
+        return config("export_import.models.export");
     }
 }
