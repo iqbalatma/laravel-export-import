@@ -2,13 +2,11 @@
 
 namespace Iqbalatma\LaravelExportImport\Models;
 
-use App\Models\SupplierAccountNumber;
-use App\Models\TransactionMapReference;
 use Carbon\Carbon;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Iqbalatma\LaravelExportImport\ImportStatus;
 
 /**
  * @property string id
@@ -24,6 +22,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string failed_full_path
  * @property string permission_name
  * @property string imported_by_id
+ * @property string|ImportStatus status
+ * @property string failed_message
  * @property string original_filename
  * @property bool is_completed
  * @property Carbon imported_at
@@ -40,7 +40,7 @@ class Import extends Model
         "total_row", "path", "filename","original_filename", "full_path",
         "failed_path", "failed_filename", "failed_full_path",
         "permission_name", "imported_by_id", "is_completed",
-        "imported_at"
+        "imported_at", "status", "failed_message"
     ];
 
     /**

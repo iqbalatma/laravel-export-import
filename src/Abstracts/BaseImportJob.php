@@ -8,10 +8,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\LazyCollection;
+use Iqbalatma\LaravelExportImport\ImportStatus;
 use RuntimeException;
 
 abstract class BaseImportJob
 {
+    public string|null $status = null;
     public int $timeout = 1200;
     protected int $successRow, $failedRow, $totalRow;
     /** @var resource|null */
@@ -29,13 +31,25 @@ abstract class BaseImportJob
         $this->user = $this->import->imported_by;
     }
 
+    public function handle(): void
+    {
+        try {
+            $this->setFile()
+                ->readFile()
+                ->importComplete();
+        } catch (Exception $e) {
+            $this->importFailed(get_class($e) . " : " . $e->getMessage());
+            throw new RuntimeException($e);
+        }
+    }
+
     /**
      * @return void
      */
-    private function uploadFileErrorToS3(): void
+    private function uploadFileErrorToDisk(): void
     {
         if ($this->isFileErrorExists) {
-            Storage::disk("s3")->putFileAs(
+            Storage::disk(config("export_import.import_disk"))->putFileAs(
                 $this->import->failed_path,
                 storage_path("app/" . config("export_import.path.temporary") . "/errors/{$this->import->failed_filename}"),
                 $this->import->failed_filename
@@ -62,8 +76,8 @@ abstract class BaseImportJob
      */
     protected function setFile(): self
     {
-        if (Storage::disk("s3")->exists($this->import->full_path)) {
-            $file = Storage::disk("s3")->get($this->import->full_path);
+        if (Storage::disk(config("export_import.import_disk"))->exists($this->import->full_path)) {
+            $file = Storage::disk(config("export_import.import_disk"))->get($this->import->full_path);
 
             Storage::put(config("export_import.path.temporary") . "/{$this->import->filename}", $file);
             $this->file = fopen(storage_path("app/" . config("export_import.path.temporary") . "/{$this->import->filename}"), mode: "r");
@@ -110,6 +124,8 @@ abstract class BaseImportJob
         $this->import->success_row = $this->successRow;
         $this->import->failed_row = $this->failedRow;
         $this->import->imported_at = Carbon::now();
+        $this->import->status = $this->status ?: ImportStatus::COMPLETED->name;
+
         fclose($this->file);
         if ($this->isFileErrorExists) {
             fclose($this->errorFile);
@@ -119,8 +135,34 @@ abstract class BaseImportJob
         }
         $this->import->save();
 
-        $this->uploadFileErrorToS3();
+        $this->uploadFileErrorToDisk();
         $this->deleteTmpFile();
+        return $this;
+    }
+
+    /**
+     * @return $this
+     */
+    protected function importPartiallyCompleted(): self
+    {
+        if ($this->successRow > 0) {
+            $this->import->status = ImportStatus::PARTIAL_COMPLETED->name;
+        } else {
+            $this->import->status = ImportStatus::FAILED->name;
+        }
+
+        return $this;
+    }
+
+    /**
+     * @param string|null $message
+     * @return $this
+     */
+    protected function importFailed(string|null $message = null): self
+    {
+        $this->import->status = ImportStatus::FAILED->name;
+        $this->import->failed_message = $message;
+        $this->import->save();
         return $this;
     }
 

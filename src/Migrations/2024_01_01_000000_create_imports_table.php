@@ -26,6 +26,8 @@ return new class extends Migration
             $table->string("failed_filename")->nullable();
             $table->string("failed_full_path")->nullable();
             $table->string("permission_name")->nullable();
+            $table->string("status")->nullable();
+            $table->text("failed_message")->nullable();
             $table->foreignUuid("imported_by_id")
                 ->nullable()
                 ->references("id")
@@ -37,6 +39,7 @@ return new class extends Migration
             $table->timestamps(6);
 
             $table->index("type");
+            $table->index("status");
             $table->index(["is_completed", "type", "imported_at"]);
         });
     }

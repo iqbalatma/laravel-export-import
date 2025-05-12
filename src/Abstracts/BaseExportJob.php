@@ -3,11 +3,14 @@
 namespace Iqbalatma\LaravelExportImport\Abstracts;
 
 use Carbon\Carbon;
+use Exception;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
+use Iqbalatma\LaravelExportImport\ExportStatus;
 
 abstract class BaseExportJob
 {
+    public string|null $status = null;
     public int $timeout = 1200;
     /** @var resource|null */
     protected $file;
@@ -21,6 +24,22 @@ abstract class BaseExportJob
     {
     }
 
+    /**
+     * Execute the job.
+     * @throws Exception
+     */
+    public function handle(): void
+    {
+        try {
+            $this->checkIsDirectoryExists()
+                ->setFile()
+                ->executeQuery()
+                ->writeFile()
+                ->exportComplete();
+        } catch (Exception $e) {
+            $this->exportFailed($e->getMessage());
+        }
+    }
 
     /**
      * @return $this
@@ -39,15 +58,27 @@ abstract class BaseExportJob
     {
         $this->export->is_completed = true;
         $this->export->exported_at = Carbon::now();
+        $this->export->status = $this->status ?: ExportStatus::COMPLETED->name;
         $this->export->available_until = Carbon::now()->addHours(config("export_import.export_available_until"));
         $this->export->save();
         fclose($this->file);
 
-        $this->uploadFileToS3()
+        $this->uploadFileToDisk()
             ->deleteTmpFile();
         return $this;
     }
 
+    /**
+     * @param string|null $message
+     * @return $this
+     */
+    protected function exportFailed(string|null $message = null): self
+    {
+        $this->export->status = ExportStatus::FAILED->name;
+        $this->export->failed_message = $message;
+        $this->export->save();
+        return $this;
+    }
 
     /**
      * @return $this
@@ -63,9 +94,9 @@ abstract class BaseExportJob
     /**
      * @return BaseExportJob
      */
-    private function uploadFileToS3(): self
+    private function uploadFileToDisk(): self
     {
-        Storage::disk("s3")->putFileAs(
+        Storage::disk(config("export_import.export_disk"))->putFileAs(
             $this->export->path,
             storage_path("app/tmp/{$this->export->filename}"),
             $this->export->filename
@@ -89,4 +120,14 @@ abstract class BaseExportJob
     {
         return $this->header;
     }
+
+    /**
+     * @return self
+     */
+    abstract protected function executeQuery(): self;
+
+    /**
+     * @return self
+     */
+    abstract protected function writeFile(): self;
 }

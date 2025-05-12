@@ -6,6 +6,7 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Iqbalatma\LaravelExportImport\ImportStatus;
 
 /**
  * @property string id
@@ -17,6 +18,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string permission_name
  * @property string exported_by_id
  * @property boolean is_completed
+ * @property string|ImportStatus status
+ * @property string failed_message
  * @property Carbon available_until
  * @property Carbon exported_at
  * @property Carbon created_at
@@ -29,7 +32,8 @@ class Export extends Model
     protected $table = "exports";
     protected $fillable = [
         "name", "type", "filename", "permission_name", "exported_by_id",
-        "available_until", "exported_at", "is_completed", "path", "full_path"
+        "available_until", "exported_at", "is_completed", "path", "full_path",
+        "status", "failed_message"
     ];
 
     /**

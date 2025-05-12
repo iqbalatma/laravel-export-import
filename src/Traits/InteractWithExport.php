@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Iqbalatma\LaravelExportImport\ExportStatus;
 
 trait InteractWithExport
 {
@@ -55,6 +56,8 @@ trait InteractWithExport
                 "path" => $path,
                 "filename" => $filename = Str::uuid() . ".csv",
                 "full_path" => "$path/$filename",
+                "status" => ExportStatus::ON_PROGRESS->name,
+                "failed_message" => null,
                 "permission_name" => $permissionName,
                 "exported_by_id" => Auth::id(),
                 "exported_at" => null,

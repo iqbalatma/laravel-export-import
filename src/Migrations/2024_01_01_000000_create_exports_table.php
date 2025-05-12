@@ -19,6 +19,8 @@ return new class extends Migration
             $table->string("filename")->nullable();
             $table->string("full_path")->nullable();
             $table->string("permission_name")->nullable();
+            $table->string("status")->nullable();
+            $table->text("failed_message")->nullable();
             $table->foreignUuid("exported_by_id")
                 ->nullable()
                 ->references("id")

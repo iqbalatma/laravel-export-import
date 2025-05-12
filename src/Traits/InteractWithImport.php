@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Iqbalatma\LaravelExportImport\ImportStatus;
 use Iqbalatma\LaravelExportImport\Models\Import;
 
 trait InteractWithImport
@@ -32,7 +33,6 @@ trait InteractWithImport
             $path = rtrim(implode(DIRECTORY_SEPARATOR, ["imports", Str::slug($importType), $importPath]), "/");
 
             $filename = Str::uuid() . ".csv";
-            $fullPath = "$path/$filename";
             Storage::disk("s3")->putFileAs($path, $file, $filename);
 
             $this->import = config("export_import.models.import")::query()->create([
@@ -43,8 +43,10 @@ trait InteractWithImport
                 "total_row" => null,
                 "path" => $path,
                 "filename" => $filename,
+                "status" => ImportStatus::ON_PROGRESS->name,
+                "failed_message" => null,
                 "original_filename" => $file->getClientOriginalName(),
-                "full_path" => $fullPath,
+                "full_path" => "$path/$filename",
                 "failed_path" => null,
                 "failed_filename" => null,
                 "failed_full_path" => null,
