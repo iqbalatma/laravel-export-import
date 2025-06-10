@@ -10,13 +10,24 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Iqbalatma\LaravelExportImport\ImportStatus;
 use Iqbalatma\LaravelExportImport\Models\Import;
+use Throwable;
 
 trait InteractWithImport
 {
     protected UploadedFile $file;
     /** @var $import Import */
-    protected $import;
+    protected Import $import;
 
+    /**
+     * @param UploadedFile $file
+     * @param string $importType
+     * @param string|null $importName
+     * @param string|null $permissionName
+     * @param string $importPath
+     * @param Closure|null $callback
+     * @return InteractWithImport
+     * @throws Throwable
+     */
     protected function createImportEntity(
         UploadedFile $file,
         string       $importType,
@@ -55,11 +66,10 @@ trait InteractWithImport
                 "is_completed" => false,
                 "imported_at" => null,
             ]);
-
-            if (is_callable($callback)) {
-                $callback();
-            }
         });
+        if (is_callable($callback)) {
+            $callback();
+        }
 
         return $this;
     }

@@ -146,9 +146,9 @@ abstract class BaseImportJob
     protected function importPartiallyCompleted(): self
     {
         if ($this->successRow > 0) {
-            $this->import->status = ImportStatus::PARTIAL_COMPLETED->name;
+            $this->status = ImportStatus::PARTIAL_COMPLETED->name;
         } else {
-            $this->import->status = ImportStatus::FAILED->name;
+            $this->status = ImportStatus::FAILED->name;
         }
 
         return $this;

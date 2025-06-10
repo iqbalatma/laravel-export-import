@@ -10,12 +10,14 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Iqbalatma\LaravelExportImport\ExportStatus;
+use Iqbalatma\LaravelExportImport\Models\Export;
+use Throwable;
 
 trait InteractWithExport
 {
     protected Carbon $exportStartDate;
     protected Carbon $exportEndDate;
-    protected $export;
+    protected Export $export;
 
     protected int $diffLimit = 31;
 
@@ -41,6 +43,7 @@ trait InteractWithExport
      * @param string|null $permissionName
      * @param Closure|null $callback
      * @return InteractWithExport
+     * @throws Throwable
      */
     protected function createExportEntity(string $exportType, string $exportName = null, string $permissionName = null, Closure $callback = null): self
     {
@@ -63,10 +66,11 @@ trait InteractWithExport
                 "exported_at" => null,
                 "is_completed" => false,
             ]);
-            if (is_callable($callback)) {
-                $callback();
-            }
         });
+
+        if (is_callable($callback)) {
+            $callback();
+        }
 
         return $this;
     }
