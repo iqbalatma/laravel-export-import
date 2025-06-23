@@ -22,6 +22,7 @@ abstract class BaseImportJob
 
     protected bool $isFirstRowSkipped;
     protected bool $isFileErrorExists;
+    protected array $header;
 
     public function __construct(protected $import)
     {
@@ -29,6 +30,7 @@ abstract class BaseImportJob
         $this->isFirstRowSkipped = false;
         $this->isFileErrorExists = false;
         $this->user = $this->import->imported_by;
+        $this->header = [];
     }
 
     public function handle(): void
@@ -97,6 +99,7 @@ abstract class BaseImportJob
             File::ensureDirectoryExists(storage_path("app/" . config("export_import.path.temporary") . "/errors"));
             $this->errorFile = fopen(storage_path("app/" . config("export_import.path.temporary") . "/errors/error-{$this->import->filename}"), mode: "w");
             $this->isFileErrorExists = true;
+            fputcsv($this->errorFile, array_merge($this->header,["error_message"]));
         }
         return $this;
     }
@@ -119,6 +122,13 @@ abstract class BaseImportJob
      */
     protected function importComplete(): self
     {
+        if ($this->failedRow === 0 && $this->successRow > 0){
+            $this->status = ImportStatus::COMPLETED->name;
+        }elseif ($this->failedRow > 0 && $this->successRow > 0){
+            $this->status = ImportStatus::PARTIAL_COMPLETED->name;
+        }elseif($this->failedRow > 0 && $this->successRow === 0){
+            $this->status = ImportStatus::FAILED->name;
+        }
         $this->import->is_completed = true;
         $this->import->total_row = $this->totalRow;
         $this->import->success_row = $this->successRow;
@@ -141,6 +151,7 @@ abstract class BaseImportJob
     }
 
     /**
+     * @deprecated
      * @return $this
      */
     protected function importPartiallyCompleted(): self
@@ -175,9 +186,12 @@ abstract class BaseImportJob
     {
         return LazyCollection::make(function () use ($separator, $isSkipHeader) {
             while (($row = fgetcsv($this->file, separator: $separator)) !== false) {
-                if (!$this->isFirstRowSkipped && $isSkipHeader) {
+                if (!$this->isFirstRowSkipped){
+                    $this->header = $row;
                     $this->isFirstRowSkipped = true;
-                    continue;
+                    if ($isSkipHeader){
+                        continue;
+                    }
                 }
 
                 yield $row;
