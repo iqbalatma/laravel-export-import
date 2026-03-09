@@ -4,14 +4,17 @@ namespace Iqbalatma\LaravelExportImport\Abstracts;
 
 use Carbon\Carbon;
 use Exception;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Iqbalatma\LaravelExportImport\ExportStatus;
+use Iqbalatma\LaravelExportImport\Models\Export;
 
 abstract class BaseExportJob
 {
     public string|null $status = null;
     public int $timeout = 1200;
+    public string $temporaryPath;
     /** @var resource|null */
     protected $file;
 
@@ -20,8 +23,9 @@ abstract class BaseExportJob
     /**
      * Create a new job instance.
      */
-    public function __construct(protected $export)
+    public function __construct(protected Export $export)
     {
+        $this->temporaryPath = config("export_import.path.temporary");
     }
 
     /**
@@ -38,6 +42,10 @@ abstract class BaseExportJob
                 ->exportComplete();
         } catch (Exception $e) {
             $this->exportFailed($e->getMessage());
+        } finally {
+            if (is_resource($this->file)) {
+                fclose($this->file);
+            }
         }
     }
 
@@ -46,7 +54,7 @@ abstract class BaseExportJob
      */
     protected function checkIsDirectoryExists(): self
     {
-        File::ensureDirectoryExists(storage_path("app/" . config("export_import.path.temporary")));
+        File::ensureDirectoryExists(storage_path("app/$this->temporaryPath"));
         return $this;
     }
 
@@ -61,7 +69,6 @@ abstract class BaseExportJob
         $this->export->status = $this->status ?: ExportStatus::COMPLETED->name;
         $this->export->available_until = Carbon::now()->addHours(config("export_import.export_available_until"));
         $this->export->save();
-        fclose($this->file);
 
         $this->uploadFileToDisk()
             ->deleteTmpFile();
@@ -85,7 +92,7 @@ abstract class BaseExportJob
      */
     protected function setFile(): self
     {
-        $this->file = fopen(storage_path("app/" . config("export_import.path.temporary") . "/{$this->export->filename}"), mode: "w");
+        $this->file = fopen(storage_path("app/$this->temporaryPath/{$this->export->filename}"), mode: "w");
         fputcsv($this->file, $this->getHeader());
         return $this;
     }
@@ -98,7 +105,7 @@ abstract class BaseExportJob
     {
         Storage::disk(config("export_import.export_disk"))->putFileAs(
             $this->export->path,
-            storage_path("app/tmp/{$this->export->filename}"),
+            storage_path("app/$this->temporaryPath/{$this->export->filename}"),
             $this->export->filename
         );
 
@@ -110,7 +117,7 @@ abstract class BaseExportJob
      */
     private function deleteTmpFile(): void
     {
-        Storage::delete(config("export_import.path.temporary") . "/{$this->export->filename}");
+        Storage::delete("$this->temporaryPath/{$this->export->filename}");
     }
 
     /**
@@ -130,4 +137,11 @@ abstract class BaseExportJob
      * @return self
      */
     abstract protected function writeFile(): self;
+
+    /**
+     * @return void
+     */
+    protected function afterExport(): void
+    {
+    }
 }

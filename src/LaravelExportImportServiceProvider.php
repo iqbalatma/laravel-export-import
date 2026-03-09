@@ -22,6 +22,6 @@ class LaravelExportImportServiceProvider extends ServiceProvider
 
         $this->publishes([
             __DIR__.'/Config/export_import.php' => config_path('export_import.php'),
-        ], "config");
+        ], "export-import-config");
     }
 }
