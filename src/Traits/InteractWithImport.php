@@ -44,7 +44,7 @@ trait InteractWithImport
             $path = rtrim(implode(DIRECTORY_SEPARATOR, ["imports", Str::slug($importType), $importPath]), "/");
 
             $filename = Str::uuid() . ".csv";
-            Storage::disk("s3")->putFileAs($path, $file, $filename);
+            Storage::disk(config("export_import.import_disk"))->putFileAs($path, $file, $filename);
 
             $this->import = config("export_import.models.import")::query()->create([
                 "type" => $importType,

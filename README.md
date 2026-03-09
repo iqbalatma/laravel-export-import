@@ -279,6 +279,8 @@ class UserService
 }
 
 
+namespace App\Jobs;
+
 use App\Models\User;
 use Illuminate\Support\LazyCollection;
 use Iqbalatma\LaravelExportImport\Abstracts\BaseExportJob;
@@ -316,7 +318,7 @@ class ExportUserJob extends BaseExportJob
 
 ---
 
-# Export Workflow
+### Export Workflow
 
 The export process follows this workflow:
 
@@ -330,13 +332,16 @@ executeQuery
 writeFile
         ↓
 exportComplete
+        ↓
+afterExport
+
 ```
 
 This workflow ensures that exports are handled efficiently and safely.
 
 ---
 
-# Lifecycle Hooks
+### Export Lifecycle Hooks
 
 You can override lifecycle hooks to customize the export process.
 
@@ -348,6 +353,102 @@ protected function afterExport(): void
     // Example: send notification
 }
 ```
+
+
+
+
+
+
+---
+# How to Import
+To start export data you can use trait InteractWithImport
+```php
+use \Iqbalatma\LaravelExportImport\Traits\InteractWithImport
+```
+
+
+Example :
+```php
+<?php
+
+namespace App\Services;
+
+use App\Jobs\Exports\ImportUserJob;
+use \Iqbalatma\LaravelExportImport\Traits\InteractWithImport
+use Illuminate\Contracts\Container\BindingResolutionException;
+
+class UserService
+{
+    use InteractWithImport;
+
+    /**
+     * @param array $requestedData
+     * @return bool
+     * @throws BindingResolutionException|AdmissionException|\Throwable
+     */
+    public static function handle(array $requestedData): bool
+    {
+        $service = new static();
+
+        $file = request()?->file("file");
+        if (!$file) {
+            throw ValidationException::withMessages(["file" => "Required file not found"]);
+        }
+        $service->createImportEntity(
+            file: $file,
+            importType: "USER",
+            importName: "Import User"
+            permissionName: "can.access.user",
+            callback: function () {
+                ImportUserJob::dispatch($service->import);
+            }
+        );
+        return true;
+    }
+
+}
+
+
+namespace App\Jobs;
+
+use App\Models\User;
+use Illuminate\Support\LazyCollection;
+use Iqbalatma\LaravelExportImport\Abstracts\BaseImportJob;
+
+class ImportUserJob extends BaseImportJob
+{
+    protected function readFile(): self
+    {
+        $this->getLazyCollection()
+            ->chunk(200)
+            ->each(function (LazyCollection $collection) {
+                foreach ($collection as $row) {
+                    try {
+                        DB::beginTransaction();
+                        #get data from db
+                        /** @var User $userFromDB */
+                        $userFromDB = User::query()->create($row);
+
+                        $this->successRow++;
+                        DB::commit();
+                    } catch (Exception $e) {
+                        DB::rollBack();
+                        $this->generateFileError()
+                            ->writeErrorRow($row, $e->getMessage());
+                        $this->failedRow++;
+                    } finally {
+                        $this->totalRow++;
+                    }
+                }
+            });
+
+        return $this;
+    }
+}
+
+```
+
+___
 
 
 ---

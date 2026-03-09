@@ -4,7 +4,6 @@ namespace Iqbalatma\LaravelExportImport\Abstracts;
 
 use Carbon\Carbon;
 use Exception;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Iqbalatma\LaravelExportImport\ExportStatus;
@@ -40,6 +39,8 @@ abstract class BaseExportJob
                 ->executeQuery()
                 ->writeFile()
                 ->exportComplete();
+
+            $this->afterExport();
         } catch (Exception $e) {
             $this->exportFailed($e->getMessage());
         } finally {
@@ -108,7 +109,6 @@ abstract class BaseExportJob
             storage_path("app/$this->temporaryPath/{$this->export->filename}"),
             $this->export->filename
         );
-
         return $this;
     }
 

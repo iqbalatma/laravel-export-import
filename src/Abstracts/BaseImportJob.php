@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\LazyCollection;
 use Iqbalatma\LaravelExportImport\ImportStatus;
+use Iqbalatma\LaravelExportImport\Models\Import;
 use RuntimeException;
 
 abstract class BaseImportJob
@@ -23,14 +24,17 @@ abstract class BaseImportJob
     protected bool $isFirstRowSkipped;
     protected bool $isFileErrorExists;
     protected array $header;
+    public string $temporaryPath;
 
-    public function __construct(protected $import)
+
+    public function __construct(protected Import $import)
     {
         $this->totalRow = $this->failedRow = $this->successRow = 0;
         $this->isFirstRowSkipped = false;
         $this->isFileErrorExists = false;
         $this->user = $this->import->imported_by;
         $this->header = [];
+        $this->temporaryPath = config("export_import.path.temporary");
     }
 
     public function handle(): void
@@ -39,9 +43,19 @@ abstract class BaseImportJob
             $this->setFile()
                 ->readFile()
                 ->importComplete();
+
+            $this->afterImport();
         } catch (Exception $e) {
             $this->importFailed(get_class($e) . " : " . $e->getMessage());
             throw new RuntimeException($e);
+        }finally {
+            if (is_resource($this->file)) {
+                fclose($this->file);
+            }
+
+            if (is_resource($this->errorFile)){
+                fclose($this->errorFile);
+            }
         }
     }
 
@@ -53,7 +67,7 @@ abstract class BaseImportJob
         if ($this->isFileErrorExists) {
             Storage::disk(config("export_import.import_disk"))->putFileAs(
                 $this->import->failed_path,
-                storage_path("app/" . config("export_import.path.temporary") . "/errors/{$this->import->failed_filename}"),
+                storage_path("app/$this->temporaryPath/errors/{$this->import->failed_filename}"),
                 $this->import->failed_filename
             );
         }
@@ -64,10 +78,10 @@ abstract class BaseImportJob
      */
     private function deleteTmpFile(): void
     {
-        Storage::delete(config("export_import.path.temporary") . "/{$this->import->filename}");
+        Storage::delete("$this->temporaryPath/{$this->import->filename}");
 
         if ($this->isFileErrorExists) {
-            Storage::delete("/" . config("export_import.path.temporary") . "/errors/{$this->import->failed_filename}");
+            Storage::delete("/$this->temporaryPath/errors/{$this->import->failed_filename}");
         }
     }
 
@@ -80,9 +94,8 @@ abstract class BaseImportJob
     {
         if (Storage::disk(config("export_import.import_disk"))->exists($this->import->full_path)) {
             $file = Storage::disk(config("export_import.import_disk"))->get($this->import->full_path);
-
-            Storage::put(config("export_import.path.temporary") . "/{$this->import->filename}", $file);
-            $this->file = fopen(storage_path("app/" . config("export_import.path.temporary") . "/{$this->import->filename}"), mode: "r");
+            Storage::put("$this->temporaryPath/{$this->import->filename}", $file);
+            $this->file = fopen(storage_path("app/$this->temporaryPath/{$this->import->filename}"), mode: "r");
         } else {
             throw new RuntimeException("File not found");
         }
@@ -96,10 +109,10 @@ abstract class BaseImportJob
     protected function generateFileError(): self
     {
         if (!$this->isFileErrorExists) {
-            File::ensureDirectoryExists(storage_path("app/" . config("export_import.path.temporary") . "/errors"));
-            $this->errorFile = fopen(storage_path("app/" . config("export_import.path.temporary") . "/errors/error-{$this->import->filename}"), mode: "w");
+            File::ensureDirectoryExists(storage_path("app/$this->temporaryPath/errors"));
+            $this->errorFile = fopen(storage_path("app/$this->temporaryPath/errors/error-{$this->import->filename}"), mode: "w");
             $this->isFileErrorExists = true;
-            fputcsv($this->errorFile, array_merge($this->header,["error_message"]));
+            fputcsv($this->errorFile, array_merge($this->header, ["error_message"]));
         }
         return $this;
     }
@@ -122,11 +135,11 @@ abstract class BaseImportJob
      */
     protected function importComplete(): self
     {
-        if ($this->failedRow === 0 && $this->successRow > 0){
+        if ($this->failedRow === 0 && $this->successRow > 0) {
             $this->status = ImportStatus::COMPLETED->name;
-        }elseif ($this->failedRow > 0 && $this->successRow > 0){
+        } elseif ($this->failedRow > 0 && $this->successRow > 0) {
             $this->status = ImportStatus::PARTIAL_COMPLETED->name;
-        }elseif($this->failedRow > 0 && $this->successRow === 0){
+        } elseif ($this->failedRow > 0 && $this->successRow === 0) {
             $this->status = ImportStatus::FAILED->name;
         }
         $this->import->is_completed = true;
@@ -136,12 +149,10 @@ abstract class BaseImportJob
         $this->import->imported_at = Carbon::now();
         $this->import->status = $this->status ?: ImportStatus::COMPLETED->name;
 
-        fclose($this->file);
         if ($this->isFileErrorExists) {
-            fclose($this->errorFile);
-            $this->import->failed_path = $this->import->path . "/errors";
-            $this->import->failed_filename = "error-" . $this->import->filename;
-            $this->import->failed_full_path = $this->import->failed_path . "/" . $this->import->failed_filename;
+            $this->import->failed_path =  "{$this->import->path}/errors";
+            $this->import->failed_filename = "error-{$this->import->filename}";
+            $this->import->failed_full_path = "{$this->import->failed_path}/{$this->import->failed_filename}" ;
         }
         $this->import->save();
 
@@ -150,20 +161,6 @@ abstract class BaseImportJob
         return $this;
     }
 
-    /**
-     * @deprecated
-     * @return $this
-     */
-    protected function importPartiallyCompleted(): self
-    {
-        if ($this->successRow > 0) {
-            $this->status = ImportStatus::PARTIAL_COMPLETED->name;
-        } else {
-            $this->status = ImportStatus::FAILED->name;
-        }
-
-        return $this;
-    }
 
     /**
      * @param string|null $message
@@ -186,10 +183,10 @@ abstract class BaseImportJob
     {
         return LazyCollection::make(function () use ($separator, $isSkipHeader) {
             while (($row = fgetcsv($this->file, separator: $separator)) !== false) {
-                if (!$this->isFirstRowSkipped){
+                if (!$this->isFirstRowSkipped) {
                     $this->header = $row;
                     $this->isFirstRowSkipped = true;
-                    if ($isSkipHeader){
+                    if ($isSkipHeader) {
                         continue;
                     }
                 }
@@ -197,5 +194,17 @@ abstract class BaseImportJob
                 yield $row;
             }
         });
+    }
+
+    /**
+     * @return self
+     */
+    abstract protected function readFile(): self;
+
+    /**
+     * @return void
+     */
+    protected function afterImport(): void
+    {
     }
 }
