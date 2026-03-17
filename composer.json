@@ -1,6 +1,7 @@
 {
     "name": "iqbalatma/laravel-export-import",
     "type": "library",
+    "license": "MIT",
     "autoload": {
         "psr-4": {
             "Iqbalatma\\LaravelExportImport\\": "src/"

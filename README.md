@@ -20,7 +20,7 @@ This package is designed to export and import large datasets efficiently while k
 
 ## Requirements
 
-- PHP >= 8.2
+- PHP >= 8.3
 - Laravel >= 10
 
 ---
@@ -143,6 +143,18 @@ return [
     */
 
     "export_available_until" => 72,
+    
+    
+    /*
+    |--------------------------------------------------------------------------
+    | Job Default Timeout (Seconds)
+    |--------------------------------------------------------------------------
+    |
+    | Determines how long job timeout. This value is defined in seconds
+    |
+    */
+
+    "job_timeout" => 1200,
 
 ];
 
@@ -178,9 +190,10 @@ Temporary files are automatically cleaned up after processing.
 
 ---
 
-## Import Disk
+## Export/Import Disk
 
 ```
+"export_disk" => "s3"
 "import_disk" => "s3"
 ```
 
@@ -197,23 +210,6 @@ Example disks:
 - local
 - public
 - s3
-
----
-
-## Export Disk
-
-```
-"export_disk" => "s3"
-```
-
-Specifies which filesystem disk will store **exported files**.
-
-You may configure this to use:
-
-- Local storage
-- AWS S3
-- DigitalOcean Spaces
-- Any filesystem supported by Laravel
 
 ---
 
@@ -447,9 +443,6 @@ class ImportUserJob extends BaseImportJob
 }
 
 ```
-
-___
-
 
 ---
 

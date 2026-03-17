@@ -81,11 +81,10 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Export Availability (Hours)
+    | Job Default Timeout (Seconds)
     |--------------------------------------------------------------------------
     |
-    | Determines how long exported files remain available for download
-    | before they expire. The value is defined in hours.
+    | Determines how long job timeout. This value is defined in seconds
     |
     */
 
