@@ -8,11 +8,12 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Iqbalatma\LaravelExportImport\ExportStatus;
 use Iqbalatma\LaravelExportImport\Models\Export;
+use Iqbalatma\LaravelExportImport\Exceptions\FailedToUploadFileToDiskException;
 
 abstract class BaseExportJob
 {
     public string|null $status = null;
-    public int $timeout = 1200;
+    public int $timeout;
     public string $temporaryPath;
     /** @var resource|null */
     protected $file;
@@ -24,6 +25,7 @@ abstract class BaseExportJob
      */
     public function __construct(protected Export $export)
     {
+        $this->timeout = config("export_import.job_timeout");
         $this->temporaryPath = config("export_import.path.temporary");
     }
 
@@ -43,6 +45,7 @@ abstract class BaseExportJob
             $this->afterExport();
         } catch (Exception $e) {
             $this->exportFailed($e->getMessage());
+            throw $e;
         } finally {
             if (is_resource($this->file)) {
                 fclose($this->file);
@@ -62,6 +65,7 @@ abstract class BaseExportJob
 
     /**
      * @return $this
+     * @throws FailedToUploadFileToDiskException
      */
     protected function exportComplete(): self
     {
@@ -101,14 +105,20 @@ abstract class BaseExportJob
 
     /**
      * @return BaseExportJob
+     * @throws FailedToUploadFileToDiskException
      */
     private function uploadFileToDisk(): self
     {
-        Storage::disk(config("export_import.export_disk"))->putFileAs(
+        $uploaded = Storage::disk(config("export_import.export_disk"))->putFileAs(
             $this->export->path,
             storage_path("app/$this->temporaryPath/{$this->export->filename}"),
             $this->export->filename
         );
+
+        if (!$uploaded) {
+            throw new FailedToUploadFileToDiskException();
+        }
+
         return $this;
     }
 

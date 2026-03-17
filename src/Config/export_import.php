@@ -78,4 +78,17 @@ return [
 
     "export_available_until" => 72,
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | Export Availability (Hours)
+    |--------------------------------------------------------------------------
+    |
+    | Determines how long exported files remain available for download
+    | before they expire. The value is defined in hours.
+    |
+    */
+
+    "job_timeout" => 1200,
+
 ];

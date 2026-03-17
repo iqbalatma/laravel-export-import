@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\LazyCollection;
+use Iqbalatma\LaravelExportImport\Exceptions\FailedToUploadFileToDiskException;
 use Iqbalatma\LaravelExportImport\ImportStatus;
 use Iqbalatma\LaravelExportImport\Models\Import;
 use RuntimeException;
@@ -15,7 +16,7 @@ use RuntimeException;
 abstract class BaseImportJob
 {
     public string|null $status = null;
-    public int $timeout = 1200;
+    public int $timeout;
     protected int $successRow, $failedRow, $totalRow;
     /** @var resource|null */
     protected $file, $errorFile;
@@ -29,12 +30,14 @@ abstract class BaseImportJob
 
     public function __construct(protected Import $import)
     {
+        $this->timeout = config("export_import.job_timeout");
+        $this->temporaryPath = config("export_import.path.temporary");
+
         $this->totalRow = $this->failedRow = $this->successRow = 0;
         $this->isFirstRowSkipped = false;
         $this->isFileErrorExists = false;
         $this->user = $this->import->imported_by;
         $this->header = [];
-        $this->temporaryPath = config("export_import.path.temporary");
     }
 
     public function handle(): void
@@ -61,15 +64,20 @@ abstract class BaseImportJob
 
     /**
      * @return void
+     * @throws FailedToUploadFileToDiskException
      */
     private function uploadFileErrorToDisk(): void
     {
         if ($this->isFileErrorExists) {
-            Storage::disk(config("export_import.import_disk"))->putFileAs(
+            $uploaded = Storage::disk(config("export_import.import_disk"))->putFileAs(
                 $this->import->failed_path,
                 storage_path("app/$this->temporaryPath/errors/{$this->import->failed_filename}"),
                 $this->import->failed_filename
             );
+
+            if (!$uploaded) {
+                throw new FailedToUploadFileToDiskException("Failed to upload {$this->import->failed_filename}");
+            }
         }
     }
 
@@ -132,6 +140,7 @@ abstract class BaseImportJob
 
     /**
      * @return $this
+     * @throws FailedToUploadFileToDiskException
      */
     protected function importComplete(): self
     {
