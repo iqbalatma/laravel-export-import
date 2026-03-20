@@ -49,14 +49,15 @@ abstract class BaseImportJob
 
             $this->afterImport();
         } catch (Exception $e) {
-            $this->importFailed(get_class($e) . " : " . $e->getMessage());
+            $this->importFailed(get_class($e) . " : " . $e->getMessage())
+                ->afterImportFailed($e);
             throw new RuntimeException($e);
-        }finally {
+        } finally {
             if (is_resource($this->file)) {
                 fclose($this->file);
             }
 
-            if (is_resource($this->errorFile)){
+            if (is_resource($this->errorFile)) {
                 fclose($this->errorFile);
             }
         }
@@ -159,9 +160,9 @@ abstract class BaseImportJob
         $this->import->status = $this->status ?: ImportStatus::COMPLETED->name;
 
         if ($this->isFileErrorExists) {
-            $this->import->failed_path =  "{$this->import->path}/errors";
+            $this->import->failed_path = "{$this->import->path}/errors";
             $this->import->failed_filename = "error-{$this->import->filename}";
-            $this->import->failed_full_path = "{$this->import->failed_path}/{$this->import->failed_filename}" ;
+            $this->import->failed_full_path = "{$this->import->failed_path}/{$this->import->failed_filename}";
         }
         $this->import->save();
 
@@ -214,6 +215,15 @@ abstract class BaseImportJob
      * @return void
      */
     protected function afterImport(): void
+    {
+    }
+
+
+    /**
+     * @param Exception $e
+     * @return void
+     */
+    protected function afterImportFailed(Exception $e): void
     {
     }
 }

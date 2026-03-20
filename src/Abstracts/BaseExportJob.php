@@ -44,7 +44,8 @@ abstract class BaseExportJob
 
             $this->afterExport();
         } catch (Exception $e) {
-            $this->exportFailed($e->getMessage());
+            $this->exportFailed($e->getMessage())
+                ->afterExportFailed($e);
             throw $e;
         } finally {
             if (is_resource($this->file)) {
@@ -152,6 +153,14 @@ abstract class BaseExportJob
      * @return void
      */
     protected function afterExport(): void
+    {
+    }
+
+    /**
+     * @param Exception $e
+     * @return void
+     */
+    protected function afterExportFailed(Exception $e): void
     {
     }
 }
