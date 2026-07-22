@@ -26,12 +26,14 @@ abstract class BaseImportJob
     protected bool $isFileErrorExists;
     protected array $header;
     public string $temporaryPath;
+    public string $temporaryDisk;
 
 
     public function __construct(protected Import $import)
     {
         $this->timeout = config("export_import.job_timeout");
         $this->temporaryPath = config("export_import.path.temporary");
+        $this->temporaryDisk = config("export_import.temporary_disk");
 
         $this->totalRow = $this->failedRow = $this->successRow = 0;
         $this->isFirstRowSkipped = false;
@@ -72,7 +74,7 @@ abstract class BaseImportJob
         if ($this->isFileErrorExists) {
             $uploaded = Storage::disk(config("export_import.import_disk"))->putFileAs(
                 $this->import->failed_path,
-                storage_path("app/$this->temporaryPath/errors/{$this->import->failed_filename}"),
+                Storage::disk($this->temporaryDisk)->path("$this->temporaryPath/errors/{$this->import->failed_filename}"),
                 $this->import->failed_filename
             );
 
@@ -87,10 +89,11 @@ abstract class BaseImportJob
      */
     private function deleteTmpFile(): void
     {
-        Storage::delete("$this->temporaryPath/{$this->import->filename}");
+        $disk = Storage::disk($this->temporaryDisk);
+        $disk->delete("$this->temporaryPath/{$this->import->filename}");
 
         if ($this->isFileErrorExists) {
-            Storage::delete("/$this->temporaryPath/errors/{$this->import->failed_filename}");
+            $disk->delete("$this->temporaryPath/errors/{$this->import->failed_filename}");
         }
     }
 
@@ -101,13 +104,19 @@ abstract class BaseImportJob
      */
     protected function setFile(): self
     {
-        if (Storage::disk(config("export_import.import_disk"))->exists($this->import->full_path)) {
-            $file = Storage::disk(config("export_import.import_disk"))->get($this->import->full_path);
-            Storage::put("$this->temporaryPath/{$this->import->filename}", $file);
-            $this->file = fopen(storage_path("app/$this->temporaryPath/{$this->import->filename}"), mode: "r");
-        } else {
+        $importDisk = config("export_import.import_disk");
+
+        if (!Storage::disk($importDisk)->exists($this->import->full_path)) {
             throw new RuntimeException("File not found");
         }
+
+        $temporaryFilePath = "$this->temporaryPath/{$this->import->filename}";
+
+        Storage::disk($this->temporaryDisk)->put(
+            $temporaryFilePath,
+            Storage::disk($importDisk)->get($this->import->full_path)
+        );
+        $this->file = fopen(Storage::disk($this->temporaryDisk)->path($temporaryFilePath), mode: "r");
 
         return $this;
     }
@@ -118,8 +127,9 @@ abstract class BaseImportJob
     protected function generateFileError(): self
     {
         if (!$this->isFileErrorExists) {
-            File::ensureDirectoryExists(storage_path("app/$this->temporaryPath/errors"));
-            $this->errorFile = fopen(storage_path("app/$this->temporaryPath/errors/error-{$this->import->filename}"), mode: "w");
+            $disk = Storage::disk($this->temporaryDisk);
+            File::ensureDirectoryExists($disk->path("$this->temporaryPath/errors"));
+            $this->errorFile = fopen($disk->path("$this->temporaryPath/errors/error-{$this->import->filename}"), mode: "w");
             $this->isFileErrorExists = true;
             fputcsv($this->errorFile, array_merge($this->header, ["error_message"]));
         }

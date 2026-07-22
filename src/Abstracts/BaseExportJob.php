@@ -15,6 +15,7 @@ abstract class BaseExportJob
     public string|null $status = null;
     public int $timeout;
     public string $temporaryPath;
+    public string $temporaryDisk;
     /** @var resource|null */
     protected $file;
 
@@ -27,6 +28,7 @@ abstract class BaseExportJob
     {
         $this->timeout = config("export_import.job_timeout");
         $this->temporaryPath = config("export_import.path.temporary");
+        $this->temporaryDisk = config("export_import.temporary_disk");
     }
 
     /**
@@ -59,7 +61,7 @@ abstract class BaseExportJob
      */
     protected function checkIsDirectoryExists(): self
     {
-        File::ensureDirectoryExists(storage_path("app/$this->temporaryPath"));
+        File::ensureDirectoryExists(Storage::disk($this->temporaryDisk)->path($this->temporaryPath));
         return $this;
     }
 
@@ -98,7 +100,7 @@ abstract class BaseExportJob
      */
     protected function setFile(): self
     {
-        $this->file = fopen(storage_path("app/$this->temporaryPath/{$this->export->filename}"), mode: "w");
+        $this->file = fopen(Storage::disk($this->temporaryDisk)->path("$this->temporaryPath/{$this->export->filename}"), mode: "w");
         fputcsv($this->file, $this->getHeader());
         return $this;
     }
@@ -112,7 +114,7 @@ abstract class BaseExportJob
     {
         $uploaded = Storage::disk(config("export_import.export_disk"))->putFileAs(
             $this->export->path,
-            storage_path("app/$this->temporaryPath/{$this->export->filename}"),
+            Storage::disk($this->temporaryDisk)->path("$this->temporaryPath/{$this->export->filename}"),
             $this->export->filename
         );
 
@@ -128,7 +130,7 @@ abstract class BaseExportJob
      */
     private function deleteTmpFile(): void
     {
-        Storage::delete("$this->temporaryPath/{$this->export->filename}");
+        Storage::disk($this->temporaryDisk)->delete("$this->temporaryPath/{$this->export->filename}");
     }
 
     /**

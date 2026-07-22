@@ -55,6 +55,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Temporary Disk
+    |--------------------------------------------------------------------------
+    |
+    | The disk used to stage files while they are being processed. Rows are
+    | read from this disk via native fopen/fgetcsv, so it MUST use the
+    | "local" driver. Do not point this to a remote disk (e.g. s3) — the
+    | file has to exist on the local filesystem to be read.
+    |
+    */
+
+    "temporary_disk" => env("EXPORT_IMPORT_TEMPORARY_DISK", "local"),
+
+    /*
+    |--------------------------------------------------------------------------
     | Export Disk
     |--------------------------------------------------------------------------
     |
